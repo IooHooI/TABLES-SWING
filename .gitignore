@@ -2,5 +2,5 @@
 
 .idea/
 target/
-tables-swing.iml
+*.iml
 
