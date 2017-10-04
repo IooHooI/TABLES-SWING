@@ -11,6 +11,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -21,9 +22,13 @@ import java.util.Iterator;
  */
 public class SomeForm extends JFrame {
     private JComboBox<String> comboBox1;
-    private JList list1;
+    private JList<Object> list1;
+    private JList<Object> list2;
+    private DefaultListModel<Object> defaultListModel1;
+    private DefaultListModel<Object> defaultListModel2;
+    private DefaultComboBoxModel<String> defaultComboBoxModel1;
+    private DefaultComboBoxModel<String> defaultComboBoxModel2;
     private JComboBox<String> comboBox2;
-    private JList list2;
     private DatePicker datePicker1;
     private DatePicker datePicker2;
     private JPanel somePanel;
@@ -35,29 +40,58 @@ public class SomeForm extends JFrame {
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setTransferHandler(new FileTransferHandler());
-
         setPreferredSize(new Dimension(500, 500));
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
+        defaultListModel1 = new DefaultListModel<>();
+        defaultListModel2 = new DefaultListModel<>();
+        defaultComboBoxModel1 = new DefaultComboBoxModel<>();
+        defaultComboBoxModel2 = new DefaultComboBoxModel<>();
+        list1.setModel(defaultListModel1);
+        list2.setModel(defaultListModel2);
+        comboBox1.setModel(defaultComboBoxModel1);
+        comboBox2.setModel(defaultComboBoxModel2);
+        comboBox1.getEditor().getEditorComponent().addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                if (e.getKeyChar() == KeyEvent.VK_ENTER) {
+                    if (!defaultListModel1.contains(defaultComboBoxModel1.getSelectedItem())) {
+                        defaultListModel1.add(0, defaultComboBoxModel1.getSelectedItem());
+                    }
+                }
+            }
+        });
+        comboBox2.getEditor().getEditorComponent().addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                if (e.getKeyChar() == KeyEvent.VK_ENTER) {
+                    if (!defaultListModel2.contains(defaultComboBoxModel2.getSelectedItem())) {
+                        defaultListModel2.add(0, defaultComboBoxModel2.getSelectedItem());
+                    }
+                }
+            }
+        });
     }
 
     public void outputExelData(String filePath) {
         setTitle(filePath);
         comboBox1.setPrototypeDisplayValue("XXXXXXXXXXXXXXXXXX");
         comboBox2.setPrototypeDisplayValue("XXXXXXXXXXXXXXXXXX");
+        list1.setPrototypeCellValue("XXXXXXXXXXXXXXXXXX");
+        list2.setPrototypeCellValue("XXXXXXXXXXXXXXXXXX");
         try (FileInputStream excelFile = new FileInputStream(new File(filePath))) {
             Workbook workbook = new XSSFWorkbook(excelFile);
             Sheet datatypeSheet = workbook.getSheetAt(0);
             Iterator<Row> iterator = datatypeSheet.iterator();
             iterator.forEachRemaining(p -> {
-                if (!p.getCell(2).getStringCellValue().isEmpty()) {
-                    comboBox1.addItem(p.getCell(1).getStringCellValue());
+                if (!p.getCell(2).getStringCellValue().isEmpty() && defaultComboBoxModel1.getIndexOf(p.getCell(2).getStringCellValue()) == -1) {
+                    defaultComboBoxModel1.addElement(p.getCell(1).getStringCellValue());
                 }
             });
             datatypeSheet.getRow(2).iterator().forEachRemaining(p -> {
-                if (!p.getStringCellValue().isEmpty()) {
-                    comboBox2.addItem(p.getStringCellValue());
+                if (!p.getStringCellValue().isEmpty() && defaultComboBoxModel2.getIndexOf(p.getStringCellValue()) == -1) {
+                    defaultComboBoxModel2.addElement(p.getStringCellValue());
                 }
             });
         } catch (IOException e) {
@@ -98,7 +132,7 @@ public class SomeForm extends JFrame {
         somePanel.setFont(new Font("Liberation Mono", Font.BOLD, somePanel.getFont().getSize()));
         final Spacer spacer1 = new Spacer();
         somePanel.add(spacer1, new GridConstraints(4, 1, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
-        list1 = new JList();
+        list1 = new JList<Object>();
         somePanel.add(list1, new GridConstraints(4, 0, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
         final JLabel label1 = new JLabel();
         label1.setText("Объекты");
@@ -113,7 +147,7 @@ public class SomeForm extends JFrame {
         datePicker2.setText("");
         datePicker2.setToolTipText("Заканчивая по");
         somePanel.add(datePicker2, new GridConstraints(7, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-        list2 = new JList();
+        list2 = new JList<Object>();
         somePanel.add(list2, new GridConstraints(4, 2, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
         сгенерироватьButton = new JButton();
         сгенерироватьButton.setText("Сгенерировать");
@@ -121,10 +155,10 @@ public class SomeForm extends JFrame {
         включатьОбъектыПоКоторымCheckBox = new JCheckBox();
         включатьОбъектыПоКоторымCheckBox.setText("Включать объекты, по которым нет плановых дат");
         somePanel.add(включатьОбъектыПоКоторымCheckBox, new GridConstraints(6, 0, 1, 3, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        comboBox1 = new JComboBox();
+        comboBox1 = new JComboBox<String>();
         comboBox1.setEditable(true);
         somePanel.add(comboBox1, new GridConstraints(1, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        comboBox2 = new JComboBox();
+        comboBox2 = new JComboBox<String>();
         comboBox2.setEditable(true);
         somePanel.add(comboBox2, new GridConstraints(3, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JLabel label2 = new JLabel();

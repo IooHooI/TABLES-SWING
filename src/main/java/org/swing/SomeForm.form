@@ -17,7 +17,7 @@
       </vspacer>
       <component id="c7f9c" class="javax.swing.JList" binding="list1" default-binding="true">
         <constraints>
-          <grid row="4" column="0" row-span="2" col-span="1" vsize-policy="6" hsize-policy="2" anchor="0" fill="3" indent="0" use-parent-layout="false">
+          <grid row="4" column="0" row-span="2" col-span="1" vsize-policy="0" hsize-policy="2" anchor="0" fill="3" indent="0" use-parent-layout="false">
             <preferred-size width="150" height="50"/>
           </grid>
         </constraints>
@@ -53,7 +53,7 @@
       </component>
       <component id="3747e" class="javax.swing.JList" binding="list2" default-binding="true">
         <constraints>
-          <grid row="4" column="2" row-span="2" col-span="1" vsize-policy="6" hsize-policy="2" anchor="0" fill="3" indent="0" use-parent-layout="false">
+          <grid row="4" column="2" row-span="2" col-span="1" vsize-policy="0" hsize-policy="2" anchor="0" fill="3" indent="0" use-parent-layout="false">
             <preferred-size width="150" height="50"/>
           </grid>
         </constraints>
