@@ -80,7 +80,7 @@ public class SomeForm extends JFrame {
                 if (e.getKeyChar() == KeyEvent.VK_ENTER) {
                     if (!defaultListModel2.contains(defaultComboBoxModel2.getSelectedItem())) {
                         defaultListModel2.add(0, defaultComboBoxModel2.getSelectedItem());
-                        collumnIndexes.add(getCollumnIndex(defaultComboBoxModel2.getSelectedItem().toString()));
+                        collumnIndexes.add(getColumnIndex(defaultComboBoxModel2.getSelectedItem().toString()));
                     }
                 }
             }
@@ -100,7 +100,7 @@ public class SomeForm extends JFrame {
         });
     }
 
-    private Integer getCollumnIndex(String s) {
+    private Integer getColumnIndex(String s) {
         Sheet dataSheet = workbook.getSheetAt(0);
         for (Cell cell : dataSheet.getRow(2)) {
             if (cell.getStringCellValue().equals(s)) {
@@ -148,10 +148,69 @@ public class SomeForm extends JFrame {
 
     private XSSFWorkbook createResultForOneTable() {
         XSSFWorkbook result = new XSSFWorkbook();
+        createAHeader(checkBox2.isSelected(), result);
+
+//        Sheet dataSheet = workbook.getSheetAt(0);
+//        int ratio = checkBox2.isSelected() ? 2 : 4;
+//        int rowCount = defaultListModel1.getSize() + 1;
+//        int collumnCount = defaultListModel2.getSize() * ratio + 2;
+//        Row row = sheet.createRow(0);
+//        Cell cell = row.createCell(0);
+//        cell.setCellValue("Объект");
+//        cell = row.createCell(1);
+//        cell.setCellValue("Код объекта");
+//        for (int i = 2; i < collumnCount; i += ratio) {
+//            cell = row.createCell(i);
+//            cell.setCellValue(dataSheet.getRow(2).getCell(collumnIndexes.get((i - 2) / ratio)).getStringCellValue());
+//            for (int j = 1; j < ratio; ) {
+//                row.createCell(i + j);
+//            }
+//            sheet.addMergedRegion(new CellRangeAddress(0, 0, i, i + ratio - 1));
+//        }
+//        CellStyle cellStyle = result.createCellStyle();
+//        CreationHelper createHelper = result.getCreationHelper();
+//        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
+//        for (int i = 1; i < rowCount; i++) {
+//            if (checkBox2.isSelected() && theObjectIsExcluded(i)) {
+//                i--;
+//                rowCount--;
+//            } else {
+//                row = sheet.createRow(i);
+//                cell = row.createCell(0);
+//                cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(1).getStringCellValue());
+//                cell = row.createCell(1);
+//                cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(2).getStringCellValue());
+//                for (int j = 2; j < collumnCount; j += ratio) {
+//                    for (int k = 1; k < ratio; ) {
+//                        cell = row.createCell(j + k);
+//                        cell.setCellStyle(cellStyle);
+//                        cell.setCellValue(
+//                                dataSheet
+//                                        .getRow(rowIndexes.get(i - 1))
+//                                        .getCell(collumnIndexes.get((j - 2) / ratio) + k).getDateCellValue()
+//                        );
+//                    }
+//                }
+//            }
+//        }
+        return result;
+    }
+
+    private boolean theObjectIsExcluded(int i) {
+        Sheet dataSheet = workbook.getSheetAt(0);
+        Row row = dataSheet.getRow(i);
+        for (Cell cell : row) {
+            if (!cell.getStringCellValue().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void createAHeader(boolean checkBox2Selected, XSSFWorkbook result) {
         XSSFSheet sheet = result.createSheet("Результирующая таблица");
         Sheet dataSheet = workbook.getSheetAt(0);
-        int ratio = checkBox2.isSelected() ? 2 : 4;
-        int rowCount = defaultListModel1.getSize() + 1;
+        int ratio = checkBox2Selected ? 2 : 4;
         int collumnCount = defaultListModel2.getSize() * ratio + 2;
         Row row = sheet.createRow(0);
         Cell cell = row.createCell(0);
@@ -161,41 +220,35 @@ public class SomeForm extends JFrame {
         for (int i = 2; i < collumnCount; i += ratio) {
             cell = row.createCell(i);
             cell.setCellValue(dataSheet.getRow(2).getCell(collumnIndexes.get((i - 2) / ratio)).getStringCellValue());
-            row.createCell(i + 1);
-            row.createCell(i + 2);
-            row.createCell(i + 3);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, i, i + 3));
+            for (int j = 1; j < ratio; j++) {
+                row.createCell(i + j);
+            }
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, i, i + ratio - 1));
         }
-        CellStyle cellStyle = result.createCellStyle();
-        CreationHelper createHelper = result.getCreationHelper();
-        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
-        for (int i = 1; i < rowCount; i++) {
-            if (checkBox2.isSelected()) {
+        row = sheet.createRow(1);
+        cell = row.createCell(0);
+        cell.setCellValue("");
+        cell = row.createCell(1);
+        cell.setCellValue("");
+        sheet.addMergedRegion(new CellRangeAddress(0, 1, 0, 0));
+        sheet.addMergedRegion(new CellRangeAddress(0, 1, 1, 1));
+        for (int i = 2; i < collumnCount; i += ratio) {
+            if (!checkBox2Selected) {
+                cell = row.createCell(i);
+                cell.setCellValue("Плановое начало");
+                cell = row.createCell(i + 1);
+                cell.setCellValue("Фактическое начало");
+                cell = row.createCell(i + 2);
+                cell.setCellValue("Плановое завершение");
+                cell = row.createCell(i + 3);
+                cell.setCellValue("Фактическое завершение");
             } else {
-                row = sheet.createRow(i);
-
-                cell = row.createCell(0);
-                cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(1).getStringCellValue());
-
-                cell = row.createCell(1);
-                cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(2).getStringCellValue());
-                for (int j = 2; j < collumnCount; j += ratio) {
-                    cell = row.createCell(j);
-                    cell.setCellStyle(cellStyle);
-                    cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(collumnIndexes.get((j - 2) / ratio)).getDateCellValue());
-                    cell = row.createCell(j + 1);
-                    cell.setCellStyle(cellStyle);
-                    cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(collumnIndexes.get((j - 2) / ratio) + 1).getDateCellValue());
-                    cell = row.createCell(j + 2);
-                    cell.setCellStyle(cellStyle);
-                    cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(collumnIndexes.get((j - 2) / ratio) + 2).getDateCellValue());
-                    cell = row.createCell(j + 3);
-                    cell.setCellStyle(cellStyle);
-                    cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(collumnIndexes.get((j - 2) / ratio) + 3).getDateCellValue());
-                }
+                cell = row.createCell(i);
+                cell.setCellValue("Плановое начало");
+                cell = row.createCell(i + 1);
+                cell.setCellValue("Плановое завершение");
             }
         }
-        return result;
     }
 
     public static void main(String[] args) {
