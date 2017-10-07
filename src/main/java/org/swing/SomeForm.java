@@ -19,28 +19,31 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by bender on 02.10.17.
  */
 public class SomeForm extends JFrame {
-    private JComboBox<String> comboBox1;
-    private JList<Object> list1;
-    private JList<Object> list2;
-    private DefaultListModel<Object> defaultListModel1;
-    private DefaultListModel<Object> defaultListModel2;
     private DefaultComboBoxModel<String> defaultComboBoxModel1;
     private DefaultComboBoxModel<String> defaultComboBoxModel2;
+    private DefaultListModel<Object> defaultListModel1;
+    private DefaultListModel<Object> defaultListModel2;
+    private JComboBox<String> comboBox1;
     private JComboBox<String> comboBox2;
     private DatePicker datePicker1;
     private DatePicker datePicker2;
-    private JPanel somePanel;
-    private JButton generateButton;
+    private JList<Object> list1;
+    private JList<Object> list2;
     private JCheckBox checkBox1;
     private JCheckBox checkBox2;
-    private Workbook workbook;
+    private Workbook workbook1;
+    private Workbook workbook2;
+    private JPanel somePanel;
+    private JButton generateButton;
     private List<Integer> rowIndexes;
     private List<Integer> collumnIndexes;
 
@@ -52,6 +55,10 @@ public class SomeForm extends JFrame {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setTransferHandler(new FileTransferHandler());
         setPreferredSize(new Dimension(500, 500));
+        comboBox1.setPrototypeDisplayValue("XXXXXXXXXXXXXXXX");
+        comboBox2.setPrototypeDisplayValue("XXXXXXXXXXXXXXXX");
+        list1.setPrototypeCellValue("XXXXXXXXXXXXXXXX");
+        list2.setPrototypeCellValue("XXXXXXXXXXXXXXXX");
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
@@ -86,22 +93,37 @@ public class SomeForm extends JFrame {
             }
         });
         generateButton.addActionListener(e -> {
-            XSSFWorkbook result = createResultForOneTable();
-            JFileChooser fc = new JFileChooser();
-            if (fc.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
-                try {
-                    FileOutputStream fileStream = new FileOutputStream(fc.getSelectedFile());
-                    result.write(fileStream);
-                    result.close();
-                } catch (Exception exc) {
-                    System.out.println("Что-то пошло не так...");
+            if (workbook1 != null && workbook2 == null) {
+                XSSFWorkbook result = createResultForOneTable();
+                JFileChooser fc = new JFileChooser();
+                if (fc.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        FileOutputStream fileStream = new FileOutputStream(fc.getSelectedFile());
+                        result.write(fileStream);
+                        result.close();
+                    } catch (Exception exc) {
+                        System.out.println("Что-то пошло не так...");
+                    }
+                }
+            }
+            if (workbook1 != null && workbook2 != null) {
+                XSSFWorkbook result = createResultForTwoTable();
+                JFileChooser fc = new JFileChooser();
+                if (fc.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    try {
+                        FileOutputStream fileStream = new FileOutputStream(fc.getSelectedFile());
+                        result.write(fileStream);
+                        result.close();
+                    } catch (Exception exc) {
+                        System.out.println("Что-то пошло не так...");
+                    }
                 }
             }
         });
     }
 
     private Integer getColumnIndex(String s) {
-        Sheet dataSheet = workbook.getSheetAt(0);
+        Sheet dataSheet = workbook1.getSheetAt(0);
         for (Cell cell : dataSheet.getRow(2)) {
             if (cell.getStringCellValue().equals(s)) {
                 return cell.getColumnIndex();
@@ -111,7 +133,7 @@ public class SomeForm extends JFrame {
     }
 
     private Integer getRowIndex(String s) {
-        Sheet dataSheet = workbook.getSheetAt(0);
+        Sheet dataSheet = workbook1.getSheetAt(0);
         for (Row aDataSheet : dataSheet) {
             Cell cell = aDataSheet.getCell(1);
             if (cell.getStringCellValue().replaceAll("\n", " ").equals(s)) {
@@ -121,14 +143,28 @@ public class SomeForm extends JFrame {
         return -1;
     }
 
-    public void outputExelData(String filePath) {
+    void outputExelData(String filePath) {
         setTitle(filePath);
-        comboBox1.setPrototypeDisplayValue("XXXXXXXXXXXXXXXX");
-        comboBox2.setPrototypeDisplayValue("XXXXXXXXXXXXXXXX");
-        list1.setPrototypeCellValue("XXXXXXXXXXXXXXXX");
-        list2.setPrototypeCellValue("XXXXXXXXXXXXXXXX");
-        try (FileInputStream excelFile = new FileInputStream(new File(filePath))) {
-            workbook = new XSSFWorkbook(excelFile);
+        File file1 = new File(filePath);
+        workbook1 = fillTheWorkbook(file1);
+    }
+
+    void outputComparisonExelData(List<String> collect) {
+        setTitle("Сравнение двух таблиц");
+        File file1 = new File(collect.get(0));
+        File file2 = new File(collect.get(1));
+        if (file1.lastModified() < file2.lastModified()) {
+            workbook1 = fillTheWorkbook(file1);
+            workbook2 = fillTheWorkbook(file2);
+        } else {
+            workbook2 = fillTheWorkbook(file1);
+            workbook1 = fillTheWorkbook(file2);
+        }
+    }
+
+    private Workbook fillTheWorkbook(File file) {
+        try (FileInputStream excelFile = new FileInputStream(file)) {
+            Workbook workbook = new XSSFWorkbook(excelFile);
             Sheet dataSheet = workbook.getSheetAt(0);
             Iterator<Row> iterator = dataSheet.iterator();
             iterator.forEachRemaining(p -> {
@@ -141,66 +177,32 @@ public class SomeForm extends JFrame {
                     defaultComboBoxModel2.addElement(p.getStringCellValue());
                 }
             });
+            return workbook;
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
     }
 
     private XSSFWorkbook createResultForOneTable() {
         XSSFWorkbook result = new XSSFWorkbook();
         createAHeader(checkBox2.isSelected(), result);
+        createATable(checkBox1.isSelected(), checkBox2.isSelected(), result);
+        return result;
+    }
 
-//        Sheet dataSheet = workbook.getSheetAt(0);
-//        int ratio = checkBox2.isSelected() ? 2 : 4;
-//        int rowCount = defaultListModel1.getSize() + 1;
-//        int collumnCount = defaultListModel2.getSize() * ratio + 2;
-//        Row row = sheet.createRow(0);
-//        Cell cell = row.createCell(0);
-//        cell.setCellValue("Объект");
-//        cell = row.createCell(1);
-//        cell.setCellValue("Код объекта");
-//        for (int i = 2; i < collumnCount; i += ratio) {
-//            cell = row.createCell(i);
-//            cell.setCellValue(dataSheet.getRow(2).getCell(collumnIndexes.get((i - 2) / ratio)).getStringCellValue());
-//            for (int j = 1; j < ratio; ) {
-//                row.createCell(i + j);
-//            }
-//            sheet.addMergedRegion(new CellRangeAddress(0, 0, i, i + ratio - 1));
-//        }
-//        CellStyle cellStyle = result.createCellStyle();
-//        CreationHelper createHelper = result.getCreationHelper();
-//        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
-//        for (int i = 1; i < rowCount; i++) {
-//            if (checkBox2.isSelected() && theObjectIsExcluded(i)) {
-//                i--;
-//                rowCount--;
-//            } else {
-//                row = sheet.createRow(i);
-//                cell = row.createCell(0);
-//                cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(1).getStringCellValue());
-//                cell = row.createCell(1);
-//                cell.setCellValue(dataSheet.getRow(rowIndexes.get(i - 1)).getCell(2).getStringCellValue());
-//                for (int j = 2; j < collumnCount; j += ratio) {
-//                    for (int k = 1; k < ratio; ) {
-//                        cell = row.createCell(j + k);
-//                        cell.setCellStyle(cellStyle);
-//                        cell.setCellValue(
-//                                dataSheet
-//                                        .getRow(rowIndexes.get(i - 1))
-//                                        .getCell(collumnIndexes.get((j - 2) / ratio) + k).getDateCellValue()
-//                        );
-//                    }
-//                }
-//            }
-//        }
+    private XSSFWorkbook createResultForTwoTable() {
+        XSSFWorkbook result = new XSSFWorkbook();
+        createAHeader(checkBox2.isSelected(), result);
+        createAComparisonTable(checkBox1.isSelected(), checkBox2.isSelected(), result);
         return result;
     }
 
     private boolean theObjectIsExcluded(int i) {
-        Sheet dataSheet = workbook.getSheetAt(0);
+        Sheet dataSheet = workbook1.getSheetAt(0);
         Row row = dataSheet.getRow(i);
-        for (Cell cell : row) {
-            if (!cell.getStringCellValue().isEmpty()) {
+        for (int j = 5; j < row.getRowNum(); j++) {
+            if (!(row.getCell(j) == null || row.getCell(j).getCellType() == Cell.CELL_TYPE_BLANK)) {
                 return false;
             }
         }
@@ -209,7 +211,7 @@ public class SomeForm extends JFrame {
 
     private void createAHeader(boolean checkBox2Selected, XSSFWorkbook result) {
         XSSFSheet sheet = result.createSheet("Результирующая таблица");
-        Sheet dataSheet = workbook.getSheetAt(0);
+        Sheet dataSheet = workbook1.getSheetAt(0);
         int ratio = checkBox2Selected ? 2 : 4;
         int collumnCount = defaultListModel2.getSize() * ratio + 2;
         Row row = sheet.createRow(0);
@@ -247,6 +249,117 @@ public class SomeForm extends JFrame {
                 cell.setCellValue("Плановое начало");
                 cell = row.createCell(i + 1);
                 cell.setCellValue("Плановое завершение");
+            }
+        }
+    }
+
+    private void createATable(boolean checkBox1Selected, boolean checkBox2Selected, XSSFWorkbook result) {
+        CellStyle cellStyle = result.createCellStyle();
+        CreationHelper createHelper = result.getCreationHelper();
+        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
+        int rowCount = defaultListModel1.getSize();
+        int f = 2;
+        Row row;
+        Cell cell;
+        for (int i = 0; i < rowCount; i++) {
+            if (checkBox1Selected && theObjectIsExcluded(rowIndexes.get(i))) {
+            } else {
+                row = result.getSheetAt(0).createRow(f);
+                cell = row.createCell(0);
+                cell.setCellValue(workbook1.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(1).getStringCellValue());
+                cell = row.createCell(1);
+                cell.setCellValue(workbook1.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(2).getStringCellValue());
+                makeRow(row, i, workbook1, result, checkBox2Selected);
+                f++;
+            }
+        }
+    }
+
+    private void createAComparisonTable(boolean checkBox1Selected, boolean checkBox2Selected, XSSFWorkbook result) {
+        int rowCount = defaultListModel1.getSize();
+        int f = 2;
+        Row row;
+        Row row1;
+        Row row2;
+        Cell cell;
+        for (int i = 0; i < rowCount; i++) {
+            if (checkBox1Selected && theObjectIsExcluded(rowIndexes.get(i))) {
+            } else {
+                row = result.getSheetAt(0).createRow(f);
+                row1 = result.getSheetAt(0).createRow(f + 1);
+                row2 = result.getSheetAt(0).createRow(f + 2);
+                cell = row.createCell(0);
+                cell.setCellValue(workbook1.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(1).getStringCellValue());
+                cell = row.createCell(1);
+                cell.setCellValue(workbook1.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(2).getStringCellValue());
+                row1.createCell(0);
+                row1.createCell(1);
+                row2.createCell(0);
+                row2.createCell(1);
+                result.getSheetAt(0).addMergedRegion(new CellRangeAddress(f, f + 2, 0, 0));
+                result.getSheetAt(0).addMergedRegion(new CellRangeAddress(f, f + 2, 1, 1));
+                makeRow(row, i, workbook1, result, checkBox2Selected);
+                makeRow(row1, i, workbook2, result, checkBox2Selected);
+                makeRow1(row2, i, result, checkBox2Selected);
+                f += 3;
+            }
+        }
+    }
+
+    private void makeRow(Row row, int i, Workbook workbook, Workbook result, boolean checkBox2Selected) {
+        CellStyle cellStyle = result.createCellStyle();
+        CreationHelper createHelper = result.getCreationHelper();
+        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
+        Cell cell;
+        int ratio = checkBox2Selected ? 2 : 4;
+        int collumnCount = defaultListModel2.getSize() * ratio + 2;
+        for (int j = 2; j < collumnCount; j += ratio) {
+            cell = row.createCell(j);
+            cell.setCellStyle(cellStyle);
+            cell.setCellValue(
+                    workbook.getSheetAt(0)
+                            .getRow(rowIndexes.get(i))
+                            .getCell(collumnIndexes.get((j - 2) / ratio)).getDateCellValue()
+            );
+            for (int k = 1; k < ratio; k++) {
+                cell = row.createCell(j + k);
+                cell.setCellStyle(cellStyle);
+                cell.setCellValue(
+                        workbook.getSheetAt(0)
+                                .getRow(rowIndexes.get(i))
+                                .getCell(collumnIndexes.get((j - 2) / ratio) + (checkBox2Selected ? k + 1 : k)).getDateCellValue()
+                );
+            }
+        }
+    }
+
+    private void makeRow1(Row row, int i, Workbook result, boolean checkBox2Selected) {
+        CellStyle cellStyle = result.createCellStyle();
+        CreationHelper createHelper = result.getCreationHelper();
+        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
+        Cell cell;
+        int ratio = checkBox2Selected ? 2 : 4;
+        int collumnCount = defaultListModel2.getSize() * ratio + 2;
+        Date date1;
+        Date date2;
+        for (int j = 2; j < collumnCount; j += ratio) {
+            cell = row.createCell(j);
+            cell.setCellStyle(cellStyle);
+            date1 = workbook1.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(collumnIndexes.get((j - 2) / ratio)).getDateCellValue();
+            date2 = workbook2.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(collumnIndexes.get((j - 2) / ratio)).getDateCellValue();
+            if (date1 != null && date2 != null) {
+                long diffInMillies = date2.getTime() - date1.getTime();
+                cell.setCellValue("Разница в " + TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS) + " дней");
+            }
+            for (int k = 1; k < ratio; k++) {
+                date1 = workbook1.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(collumnIndexes.get((j - 2) / ratio) + (checkBox2Selected ? k + 1 : k)).getDateCellValue();
+                date2 = workbook2.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(collumnIndexes.get((j - 2) / ratio) + (checkBox2Selected ? k + 1 : k)).getDateCellValue();
+                cell = row.createCell(j + k);
+                cell.setCellStyle(cellStyle);
+                if (date1 != null && date2 != null) {
+                    long diffInMillies = date2.getTime() - date1.getTime();
+                    cell.setCellValue("Разница в " + TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS) + " дней");
+                }
             }
         }
     }
@@ -301,7 +414,7 @@ public class SomeForm extends JFrame {
         generateButton.setText("Сгенерировать");
         somePanel.add(generateButton, new GridConstraints(10, 0, 1, 6, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         checkBox1 = new JCheckBox();
-        checkBox1.setText("Включать объекты, по которым нет плановых дат");
+        checkBox1.setText("Не показывать исклюенные объекты");
         somePanel.add(checkBox1, new GridConstraints(7, 0, 1, 3, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         comboBox1 = new JComboBox();
         comboBox1.setEditable(true);
