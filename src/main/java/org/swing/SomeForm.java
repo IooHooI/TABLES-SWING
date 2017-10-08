@@ -6,6 +6,7 @@ import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -14,10 +15,12 @@ import java.awt.*;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -55,6 +58,8 @@ public class SomeForm extends JFrame {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setTransferHandler(new FileTransferHandler());
         setPreferredSize(new Dimension(500, 500));
+        ImageIcon img = new ImageIcon(getClass().getResource("/show-apps-button.png"));
+        setIconImage(img.getImage());
         comboBox1.setPrototypeDisplayValue("XXXXXXXXXXXXXXXX");
         comboBox2.setPrototypeDisplayValue("XXXXXXXXXXXXXXXX");
         list1.setPrototypeCellValue("XXXXXXXXXXXXXXXX");
@@ -116,6 +121,36 @@ public class SomeForm extends JFrame {
                         result.close();
                     } catch (Exception exc) {
                         System.out.println("Что-то пошло не так...");
+                    }
+                }
+            }
+        });
+        datePicker1.addDateChangeListener(event -> {
+            System.out.println(event.getNewDate());
+        });
+        datePicker2.addDateChangeListener(event -> {
+            System.out.println(event.getNewDate());
+        });
+        list1.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                if (e.getKeyChar() == KeyEvent.VK_DELETE) {
+                    if (!defaultListModel1.isEmpty()) {
+                        rowIndexes.remove(getRowIndex(list1.getSelectedValue().toString()));
+                        defaultListModel1.remove(list1.getSelectedIndex());
+                        list1.setSelectedIndex(0);
+                    }
+                }
+            }
+        });
+        list2.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                if (e.getKeyChar() == KeyEvent.VK_DELETE) {
+                    if (!defaultListModel2.isEmpty()) {
+                        collumnIndexes.remove(getRowIndex(list2.getSelectedValue().toString()));
+                        defaultListModel2.remove(list2.getSelectedIndex());
+                        list2.setSelectedIndex(0);
                     }
                 }
             }
@@ -188,6 +223,12 @@ public class SomeForm extends JFrame {
         XSSFWorkbook result = new XSSFWorkbook();
         createAHeader(checkBox2.isSelected(), result);
         createATable(checkBox1.isSelected(), checkBox2.isSelected(), result);
+        for (Row row : result.getSheetAt(0)) {
+            for (Cell cell : row) {
+                cell.getCellStyle().setAlignment(HorizontalAlignment.CENTER);
+                cell.getCellStyle().setVerticalAlignment(VerticalAlignment.CENTER);
+            }
+        }
         return result;
     }
 
@@ -254,9 +295,6 @@ public class SomeForm extends JFrame {
     }
 
     private void createATable(boolean checkBox1Selected, boolean checkBox2Selected, XSSFWorkbook result) {
-        CellStyle cellStyle = result.createCellStyle();
-        CreationHelper createHelper = result.getCreationHelper();
-        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
         int rowCount = defaultListModel1.getSize();
         int f = 2;
         Row row;
@@ -313,22 +351,41 @@ public class SomeForm extends JFrame {
         Cell cell;
         int ratio = checkBox2Selected ? 2 : 4;
         int collumnCount = defaultListModel2.getSize() * ratio + 2;
+        Date date1;
+        Date date2;
         for (int j = 2; j < collumnCount; j += ratio) {
             cell = row.createCell(j);
             cell.setCellStyle(cellStyle);
-            cell.setCellValue(
-                    workbook.getSheetAt(0)
-                            .getRow(rowIndexes.get(i))
-                            .getCell(collumnIndexes.get((j - 2) / ratio)).getDateCellValue()
-            );
+            date1 = workbook.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(collumnIndexes.get((j - 2) / ratio)).getDateCellValue();
+            cell.setCellValue(date1);
             for (int k = 1; k < ratio; k++) {
                 cell = row.createCell(j + k);
                 cell.setCellStyle(cellStyle);
-                cell.setCellValue(
-                        workbook.getSheetAt(0)
-                                .getRow(rowIndexes.get(i))
-                                .getCell(collumnIndexes.get((j - 2) / ratio) + (checkBox2Selected ? k + 1 : k)).getDateCellValue()
-                );
+                date2 = workbook.getSheetAt(0).getRow(rowIndexes.get(i)).getCell(collumnIndexes.get((j - 2) / ratio) + (checkBox2Selected ? k + 1 : k)).getDateCellValue();
+                if (date2 != null) {
+                    cell.setCellValue(date1);
+                } else {
+                    cellStyle = result.createCellStyle();
+                    createHelper = result.getCreationHelper();
+                    cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
+                    if (date1 != null) {
+                        long diffInMillies = date1.getTime() - Date.from(Instant.now()).getTime();
+                        if (TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS) < 30) {
+                            CellStyle cellStyle1 = result.createCellStyle();
+                            cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
+                            cell.setCellStyle(cellStyle1);
+                            cell.getCellStyle().setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                            cell.getCellStyle().setFillForegroundColor(IndexedColors.YELLOW.getIndex());
+                        }
+                        if (TimeUnit.DAYS.convert(diffInMillies, TimeUnit.MILLISECONDS) < 7) {
+                            CellStyle cellStyle1 = result.createCellStyle();
+                            cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd.mm.yyyy"));
+                            cell.setCellStyle(cellStyle1);
+                            cell.getCellStyle().setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                            cell.getCellStyle().setFillForegroundColor(IndexedColors.RED.getIndex());
+                        }
+                    }
+                }
             }
         }
     }
